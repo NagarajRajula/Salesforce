@@ -1,0 +1,15 @@
+trigger Checking_Existing_Account_Before_Insert on Account (before insert) {
+    List<Account> AL = [select id, name from Account];    
+    //system.debug('AL'+AL);
+    List<Account> AL2 = new List<Account>();
+    
+    for(Account a: trigger.new){
+        for(Account AL1: AL){
+            if(a.name == AL1.name){
+                a.adderror('The Account name already existing in Database');
+            }
+        }
+            AL2.add(a);
+        }
+
+}
