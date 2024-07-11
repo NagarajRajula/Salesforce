@@ -48,27 +48,26 @@ global class RestExplorerPUT {
         
         Account ac = createOrUpdatePayload.account;
         Contact[] conList = createOrUpdatePayload.contacts;
-        
-        Boolean isAccountExists = false;
-        Id accountId;
-        
-        Map<String, Account> acMap = new Map<String, Account>();
+
         Map<String, Contact> conMap = new Map<String, Contact>();
-        Map<String, Boolean> conExistsCheck = new Map<String, Boolean>();
         List<Contact> contInsertList = new List<Contact>();
         List<Contact> contUpdateList = new List<Contact>();
+        List<Account> acList = new List<Account>();
         
         for(Account a : [Select Id,Name,Rating, Description, AccountNumber From Account]){
-            acMap.put(a.AccountNumber, a);
-            accountId = a.Id;
+            if(a.AccountNumber == ac.AccountNumber){
+                Account ac1 = new Account(
+                    Id = a.Id,
+                    Name = ac.Name,
+                    Rating = ac.Rating,
+                    Description = ac.Description
+                );
+                acList.add(ac1);
+            }
         }
         
         for(Contact c : [SELECT Id,FirstName, LastName, Email, AccountId FROM Contact]){
             conMap.put(c.Email, c);
-        }
-        
-        if(acMap.containsKey(ac.AccountNumber)){
-            isAccountExists = true;
         }
         
         for(Contact c: conList){
@@ -78,7 +77,7 @@ global class RestExplorerPUT {
                     FirstName = c.FirstName,
                     LastName = c.LastName,
                     Email = c.Email,
-                    AccountId = accountId
+                    AccountId = acList[0].Id
                 );
                 contUpdateList.add(con);
             } else {
@@ -86,29 +85,22 @@ global class RestExplorerPUT {
                     FirstName = c.FirstName,
                     LastName = c.LastName,
                     Email = c.Email,
-                    AccountId = accountId
+                    AccountId = acList[0].Id
                 );
                 contInsertList.add(con);
             }
-        }
-        
-        if(isAccountExists){
-            if(ac.Name != acMap.get(ac.AccountNumber).Name){
-                acMap.get(ac.AccountNumber).Name = ac.Name;
-            } else if(ac.Rating != acMap.get(ac.AccountNumber).Rating){
-                acMap.get(ac.AccountNumber).Rating = ac.Rating;
-            }
-        }
-        
+        }        
         
         RestResponse res = RestContext.Response;
+        String insertedAccountText;
         
         try{
-            if(isAccountExists){
-                update acMap.values();
+            if(acList.size() > 0){
+                update acList;
             }
             else {
                 insert ac;
+                insertedAccountText = JSON.serialize(ac);
             }
             if(contUpdateList.size() > 0){
                 update contUpdateList;} 
@@ -116,8 +108,8 @@ global class RestExplorerPUT {
                 insert contInsertList;
             }
             res.statuscode = 200;
-            res.responsebody = Blob.valueOf('Update Account : '+ JSON.serialize(acMap.get(ac.AccountNumber)) +
-                                            '\n Inserted Account: '+ JSON.serialize(ac) + 
+            res.responsebody = Blob.valueOf('Update Account : '+ JSON.serialize(acList) +
+                                            '\n Inserted Account: '+ insertedAccountText + 
                                             '\n Inserted Contacts:  '+ JSON.serialize(contInsertList) +
                                             '\n Updated Contacts:  '+ JSON.serialize(contUpdateList));
         } catch(Exception e){
